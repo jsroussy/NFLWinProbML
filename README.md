@@ -10,6 +10,8 @@
 * [Usage](#usage)
 * [Project Status](#project-status)
 * [Room for Improvement](#room-for-improvement)
+* [Data Sources](#data-sources)
+* [Resources](#resources)
 <!-- * [GPLv3](https://choosealicense.com/licenses/gpl-3.0/#) -->
 
 
