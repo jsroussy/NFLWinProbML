@@ -37,8 +37,8 @@ The Scripts can be used as is assuming python is installed and dependent modules
 The data is required to run the App, so:
 - Run espnAPI_nflScrape first
    - Make sure to name 'folder' data
-- Then run App
-The Script can be run in the command line like so:
+   - You may skip this step as data is already included in data folder
+- Then run App.py. The Script can be run in the command line like so:
 `python path\\to\\script.py`
 
 
