@@ -1,0 +1,20 @@
+# created by virtualenv automatically
+
+# Ignore files related to API keys
+.env
+.cfg
+
+# Ignore jupyter notebooks
+nfl_dashAPP.ipynb
+nfl_espnAPIScraper.ipynb
+nfl_pgsqlCreateTable.ipynb
+nfl_pgsqlJoinData.ipynb
+
+# Ignore folders
+.ipynb_checkpoints/
+etc/
+include/
+Lib/
+Scripts/
+share/
+xgboost/
