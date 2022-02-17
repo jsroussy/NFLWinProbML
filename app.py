@@ -314,6 +314,7 @@ nfl_df2021 = nfl_df2021[new_order]
 
 # Intialize Dash App
 app = dash.Dash(__name__)
+server = app.server
 
 app.layout = html.Div([
 
