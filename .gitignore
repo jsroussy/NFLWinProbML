@@ -2,7 +2,7 @@
 
 # Ignore files related to API keys
 .env
-.cfg
+pyvenv.cfg
 
 # Ignore jupyter notebooks
 nfl_dashAPP.ipynb

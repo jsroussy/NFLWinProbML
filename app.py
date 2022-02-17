@@ -35,14 +35,16 @@ Modification History:
 ###############
 
 import sys
-from os import listdir
-from os.path import isfile, join
-from zipfile import ZipFile
+from os.path import join
 import pandas as pd
 import numpy as np
 import math
 from math import pi
 from joblib import dump, load
+
+from dotenv import load_dotenv
+from os import getenv
+from sqlalchemy import create_engine
 
 import dash
 from dash import dash_table as dt
@@ -56,25 +58,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 #################
 ### Functions ###
 #################
-
-###############################
-### File Manipulation Funcs ###
-###############################
-
-# File listing function
-def zlist_files(data_path, zipname, cond):
-    zipped_files = join(data_path, zipname)
-    with ZipFile(zipped_files) as z:
-        flist = [f for f in z.namelist() if cond in f]
-        fout = [z.open(f) for f in flist]
-        return fout
-
-# Create pandas data loader for multi-json loads
-def pandas_loader(fout, idx_name):
-    dfs = [pd.read_json(f) for f in fout]
-    df = pd.concat((idf.set_index(idx_name) for idf in dfs), 
-                   axis=1, join='inner').reset_index()
-    return df
 
 #################################
 ### Feature Engineering Funcs ###
@@ -140,65 +123,49 @@ def team_filter_vals(df, filter_team, filter_week):
     return df
 
 
+#######################
+### POSTGRESQL INFO ###
+#######################
+
+# Load in environment file
+load_dotenv()
+
+# SQLAlchemy engine from env file
+db_uri = getenv('SQLALCHEMY_NFL_URI')
+engine = create_engine(db_uri)
+
+# Set schema var
+schema = 'data'
+
+
 #################
 ### LOAD DATA ###
 #################
 
-data_path = sys.path[0] + '\\data'
-
 # Load Statistics
-stats_df = pandas_loader(zlist_files(data_path, 'nfl_data_2002_2021.zip', 'stats'), 'id')
-#stats_df.head(10)
-
-# Load Record
-record_df = pandas_loader(zlist_files(data_path, 'nfl_data_2002_2021.zip', 'record'), 'id')
-#record_df.head(10)
+team_stats_records_df = pd.read_sql_table('team_stats_records', engine, schema=schema)
 
 # Load matches
-matches_df = pd.read_json(zlist_files(data_path, 'nfl_data_2002_2021.zip', 'matches')[0])
-#matches_df.head(10)
-
-# Load teams
-teams_df = pd.read_json(zlist_files(data_path, 'nfl_data_2002_2021.zip', 'teams')[0])
-#teams_df.head(10)
+matches_df = pd.read_sql_table('matches', engine, schema=schema)
 
 
 #########################
 ### JOIN DATA & CLEAN ###
 #########################
 
-# Remove Duplicate columns from Stats and Records df
-stats_df = stats_df.loc[:,~stats_df.columns.duplicated()]
-record_df = record_df.loc[:,~record_df.columns.duplicated()]
-
-# Merge Stats and Record dfs
-merged_df = stats_df.merge(record_df, how='left', on=['id'])
-#merged_df.head(10)
-
-# Merge Merged df with Teams df
-remerge_df = merged_df.merge(teams_df, how='left', left_on='team_id_x', 
-                             right_on='id')
-#remerge_df.head(35)
-
 # Merge Remerged df to Matches df
-nfl_df = matches_df.merge(remerge_df, left_on=['season', 'home_team'], 
-                          right_on=['season_x','team_id_x'])\
-                   .merge(remerge_df, left_on=['season', 'away_team'], 
-                          right_on=['season_x','team_id_x'],
+nfl_df = matches_df.merge(team_stats_records_df, left_on=['season', 'home_team'], 
+                          right_on=['season','id'])\
+                   .merge(team_stats_records_df, left_on=['season', 'away_team'], 
+                          right_on=['season','id'],
                           suffixes=('_home', '_away'))
 
-# Convert date_time column to datetime object
-nfl_df['date_time'] = pd.to_datetime(nfl_df['date_time'], utc=True)
 # Sort NFL df by date_time
 nfl_df = nfl_df.sort_values(['date_time'])
 
 # Drop redundant columns like id_x/id_y, etc
-drop_cols = [col for col in nfl_df.columns if '_x_' in col or '_y_' in col]
+drop_cols = [col for col in nfl_df.columns if '_x' in col or '_y' in col]
 nfl_df = nfl_df.drop(drop_cols, axis=1)
-
-# Drop Rank and PG columns
-drop_rankpg_cols = [col for col in nfl_df.columns                    if 'rank' in col or 'pg' in col]
-nfl_df = nfl_df.drop(drop_rankpg_cols, axis=1)
 
 # Drop stats columns with 999 values in it
 drop_999_cols = [col for col in nfl_df.columns[nfl_df.isin([999]).any()]                   if 'stat' in col]
@@ -213,12 +180,10 @@ replace_999_cols = ['home_team_win', 'home_team_score',
                     'away_team_win', 'away_team_score']
 nfl_df[replace_999_cols] = nfl_df[replace_999_cols].replace(999,0)
 
-# Drop Abbreviation team name col
-drop_abb_col = [col for col in nfl_df.columns if 'abbreviation' in col]
-nfl_df = nfl_df.drop(drop_abb_col, axis=1)
-
 # Replace remaining NaNs with 0
 nfl_df = nfl_df.fillna(0)
+
+nfl_df.info()
 
 
 ###########################
@@ -267,7 +232,7 @@ X_test = nfl_df[nfl_df['season'].isin([2021])][X_cols]
 # Model Path
 model_path = sys.path[0] + '\\model'
 # Load Logistic Regresssion Model
-logreg_model = load(join(model_path, 'winprob_logreg_2002_2020.joblib'))
+logreg_model = load(join(model_path, 'winprob_xgb_2002_2020.joblib'))
 # Load SVR Model
 svr_model = load(join(model_path, 'scores_svr_2002_2020.joblib'))
 
