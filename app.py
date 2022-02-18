@@ -221,6 +221,9 @@ nfl_df = nfl_df.fillna(0)
 
 nfl_df.info()
 
+# Dump variables to release memory
+del matches_df
+del team_stats_records_df
 
 ###########################
 ### FEATURE ENGINEERING ###
@@ -292,6 +295,10 @@ svr_model.fit(X_train, y_regtrain)
 # Predict Scores
 pred_scores = svr_model.predict(X_test)
 
+# Dump variables to release memory
+del xgb_model
+del svr_model
+
 
 ###################
 ### 2021 TABLES ###
@@ -341,6 +348,8 @@ move_cols = nfl_df2021.columns.to_list()
 new_order = move_cols[4:5] + move_cols[0:2] + move_cols[6:8] + move_cols[2:4] + move_cols[5:6] + move_cols[8:]
 nfl_df2021 = nfl_df2021[new_order]
 
+# Dump variables to release memory
+del nfl_df
 
 #################
 ### DASH APP  ###
