@@ -27,6 +27,8 @@ Modification History:
 
 2022-01-19: Added sys.path[0] to be able to find data folder when
             calling the app through shell
+2022-02-17: Added Gunicorn to act as HTTP 
+2022-02-18: Added WhiteNOise module to import static files from 'static' folder
                
 '''
 
@@ -35,7 +37,7 @@ Modification History:
 ### Imports ###
 ###############
 
-import sys
+from os import path
 from os.path import join
 import pandas as pd
 import numpy as np
@@ -51,6 +53,9 @@ import dash
 from dash import dash_table as dt
 from dash import Dash, Input, Output, callback, dcc, html
 import dash_bootstrap_components as dbc
+
+from whitenoise import WhiteNoise
+
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -122,6 +127,16 @@ def team_filter_vals(df, filter_team, filter_week):
         df['correct_prediction'].loc['average'] = '0/0 (0%)'
         
     return df
+
+
+######################
+### DASH APP START ###
+######################
+
+# Intialize Dash App
+app = dash.Dash(__name__)
+server = app.server
+server.wsgi_app = WhiteNoise(server.wsgi_app, root='static')
 
 
 #######################
@@ -232,8 +247,11 @@ X_test = nfl_df[nfl_df['season'].isin([2021])][X_cols]
 ### LOAD MODEL ###
 ##################
 
+# Base directory
+BASE_DIR = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+
 # Model Path
-model_path = sys.path[0] + '\\model'
+model_path = BASE_DIR + '\\model'
 # Load Logistic Regresssion Model
 logreg_model = load(join(model_path, 'winprob_xgb_2002_2020.joblib'))
 # Load SVR Model
@@ -311,12 +329,9 @@ new_order = move_cols[4:5] + move_cols[0:2] + move_cols[6:8] + move_cols[2:4] + 
 nfl_df2021 = nfl_df2021[new_order]
 
 
-################
-### DASH APP ###
-################
-
-# Intialize Dash App
-app = dash.Dash(__name__)
+#######################
+### DASH APP LAYOUT ###
+#######################
 
 app.layout = html.Div([
 

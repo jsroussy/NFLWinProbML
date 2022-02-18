@@ -14,3 +14,4 @@ SQLAlchemy==1.4.7
 statsmodels==0.12.2
 xgboost==1.5.1
 gunicorn==20.1.0
+whitenoise==6.0.0
