@@ -278,13 +278,13 @@ svr_model = read_joblib(getenv('SVR_URI'))
 ## 2021 DATA 
 
 # Fit Model Logistic Regression
-logreg_model.fit(X_train, y_train)
+xgb_model.fit(X_train, y_train)
 
 # Predict labels
-pred_label = logreg_model.predict(X_test)
+pred_label = xgb_model.predict(X_test)
 
 # Probabilities
-prob = logreg_model.predict_proba(X_test)
+prob = xgb_model.predict_proba(X_test)
 
 # Fit Model SVR
 svr_model.fit(X_train, y_regtrain)
