@@ -247,12 +247,10 @@ X_test = nfl_df[nfl_df['season'].isin([2021])][X_cols]
 ### LOAD MODEL ###
 ##################
 
-# Model Path
-root_path = sys.path[0]
 # Load Logistic Regresssion Model
-logreg_model = load(join(root_path, 'model/winprob_xgb_2002_2020.joblib'))
+logreg_model = load('model/winprob_xgb_2002_2020.joblib')
 # Load SVR Model
-svr_model = load(join(root_path, 'model/scores_svr_2002_2020.joblib'))
+svr_model = load('model/scores_svr_2002_2020.joblib')
 
 
 ########################
