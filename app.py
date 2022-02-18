@@ -12,7 +12,7 @@ INFORMATION
 
 Author: Jean-Sebastien Roussy
 Date Created: 2021-12-02
-Last Modified: 2022-01-19
+Last Modified: 2022-02-18
 
 Description:
 
@@ -27,8 +27,8 @@ Modification History:
 
 2022-01-19: Added sys.path[0] to be able to find data folder when
             calling the app through shell
-2022-02-17: Added Gunicorn to act as HTTP 
-2022-02-18: Added WhiteNOise module to import static files from 'static' folder
+2022-02-18: Added models to S3 bucket and called them via S3 URI 
+            stored in .env file
                
 '''
 
@@ -37,7 +37,6 @@ Modification History:
 ### Imports ###
 ###############
 
-import sys
 from os.path import join
 import pandas as pd
 import numpy as np
@@ -53,9 +52,6 @@ import dash
 from dash import dash_table as dt
 from dash import Dash, Input, Output, callback, dcc, html
 import dash_bootstrap_components as dbc
-
-from whitenoise import WhiteNoise
-
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
@@ -127,16 +123,6 @@ def team_filter_vals(df, filter_team, filter_week):
         df['correct_prediction'].loc['average'] = '0/0 (0%)'
         
     return df
-
-
-######################
-### DASH APP START ###
-######################
-
-# Intialize Dash App
-app = dash.Dash(__name__)
-server = app.server
-server.wsgi_app = WhiteNoise(server.wsgi_app, root='static')
 
 
 #######################
@@ -248,9 +234,9 @@ X_test = nfl_df[nfl_df['season'].isin([2021])][X_cols]
 ##################
 
 # Load Logistic Regresssion Model
-logreg_model = load('model/winprob_xgb_2002_2020.joblib')
+xgb_model = read_joblib(getenv('XGB_URI'))
 # Load SVR Model
-svr_model = load('model/scores_svr_2002_2020.joblib')
+svr_model = read_joblib(getenv('SVR_URI'))
 
 
 ########################
@@ -324,9 +310,13 @@ new_order = move_cols[4:5] + move_cols[0:2] + move_cols[6:8] + move_cols[2:4] + 
 nfl_df2021 = nfl_df2021[new_order]
 
 
-#######################
-### DASH APP LAYOUT ###
-#######################
+#################
+### DASH APP  ###
+#################
+
+# Intialize Dash App
+app = dash.Dash(__name__)
+server = app.server
 
 app.layout = html.Div([
 
