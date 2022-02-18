@@ -249,13 +249,10 @@ X_test = nfl_df[nfl_df['season'].isin([2021])][X_cols]
 
 # Base directory
 BASE_DIR = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
-
-# Model Path
-model_path = BASE_DIR + '\\model'
 # Load Logistic Regresssion Model
-logreg_model = load(join(model_path, 'winprob_xgb_2002_2020.joblib'))
+logreg_model = load(join(BASE_DIR, 'model/winprob_xgb_2002_2020.joblib'))
 # Load SVR Model
-svr_model = load(join(model_path, 'scores_svr_2002_2020.joblib'))
+svr_model = load(join(BASE_DIR, 'model/scores_svr_2002_2020.joblib'))
 
 
 ########################
