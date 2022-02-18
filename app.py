@@ -43,6 +43,8 @@ import numpy as np
 import math
 from math import pi
 from joblib import dump, load
+from io import BytesIO
+import boto3
 
 from dotenv import load_dotenv
 from os import getenv
@@ -72,6 +74,36 @@ def transformation(column):
     cos_values = [math.cos((2*pi*x)/max_value) for x in list(column)]
     return sin_values, cos_values
 
+#######################
+### S3 Loading Func ###
+#######################
+
+# Source: https://stackoverflow.com/questions/62941174/how-to-write-load-machine-learning-model-to-from-s3-bucket-through-joblib
+def read_joblib(path):
+    ''' 
+       Function to load a joblib file from an s3 bucket or local directory.
+       Arguments:
+       * path: an s3 bucket or local directory path where the file is stored
+       Outputs:
+       * file: Joblib file loaded
+    '''
+
+    # Path is an s3 bucket
+    if path[:5] == 's3://':
+        s3_bucket, s3_key = path.split('/')[2], path.split('/')[3:]
+        s3_key = '/'.join(s3_key)
+        with BytesIO() as f:
+            boto3.client("s3").download_fileobj(Bucket=s3_bucket, Key=s3_key, Fileobj=f)
+            f.seek(0)
+            file = load(f)
+    
+    # Path is a local directory 
+    else:
+        with open(path, 'rb') as f:
+            file = load(f)
+    
+    return file
+    
 #######################
 ### Dash  App Funcs ###
 #######################

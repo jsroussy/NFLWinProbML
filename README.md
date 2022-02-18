@@ -10,6 +10,7 @@
 * [Usage](#usage)
 * [Project Status](#project-status)
 * [Room for Improvement](#room-for-improvement)
+* [Recent Modifications](#recent-modifications)
 * [Data Sources](#data-sources)
 * [Resources](#resources)
 <!-- * [GPLv3](https://choosealicense.com/licenses/gpl-3.0/#) -->
@@ -33,13 +34,14 @@ I have included a requirements.txt file so users can install the correct python 
 
 
 ## Usage
-The Scripts can be used as is assuming python is installed and dependent modules installed.
+Not all the Scripts can be used as is assuming python is installed and dependent modules installed.
 The data is required to run the App, so:
 - Run espnAPI_nflScrape first
    - Make sure to name 'folder' data
    - You may skip this step as data is already included in data folder
-- Then run App.py. The Script can be run in the command line like so:
-`python path\\to\\script.py`
+- App.py has been modified to get data from Heroku Postgres and Models from S3 Bucket.
+   - The script can be modified to load the data and models from a local directory as the necessary files have been provided.
+- So: `python path\\to\\script.py`
 
 
 ## Project Status
@@ -53,9 +55,14 @@ Room for improvement:
 - Testing different models and hyperparameters
 
 To do:
-- PostgreSQL data connection
 - More Web Scrapers for additional data
 - To be determined.
+
+## Recent Modifications
+
+Work completed:
+- 2022-02-17: Postgres integration complete using Heroku PostgreSQL
+- 2022-02-18: Static files served on S3, i.e XGB and SVR models.
 
 ## Data Sources
 - ESPN NFL Data: https://gist.github.com/nntrn/ee26cb2a0716de0947a0a4e9a157bc1c
