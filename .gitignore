@@ -4,6 +4,10 @@
 .env
 pyvenv.cfg
 
+# Ignore txt files and other files
+runtime.txt
+Procfile
+
 # Ignore jupyter notebooks
 nfl_dashAPP.ipynb
 nfl_espnAPIScraper.ipynb

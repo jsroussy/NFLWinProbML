@@ -37,7 +37,7 @@ Modification History:
 ### Imports ###
 ###############
 
-from os import path
+import sys
 from os.path import join
 import pandas as pd
 import numpy as np
@@ -247,12 +247,12 @@ X_test = nfl_df[nfl_df['season'].isin([2021])][X_cols]
 ### LOAD MODEL ###
 ##################
 
-# Base directory
-BASE_DIR = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
+# Model Path
+root_path = sys.path[0]
 # Load Logistic Regresssion Model
-logreg_model = load(join(BASE_DIR, 'model/winprob_xgb_2002_2020.joblib'))
+logreg_model = load(join(root_path, 'model/winprob_xgb_2002_2020.joblib'))
 # Load SVR Model
-svr_model = load(join(BASE_DIR, 'model/scores_svr_2002_2020.joblib'))
+svr_model = load(join(root_path, 'model/scores_svr_2002_2020.joblib'))
 
 
 ########################
