@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+
 #------------------ Script to Launch NFL Win Prob Dash App ------------------#
 
 '''
@@ -132,10 +133,12 @@ load_dotenv()
 
 # SQLAlchemy engine from env file
 db_uri = getenv('SQLALCHEMY_NFL_URI')
-engine = create_engine(db_uri)
+if db_uri.startswith("postgres://"):
+    db_uri = db_uri.replace("postgres://", "postgresql+psycopg2://", 1)
 
-# Set schema var
-schema = 'data'
+engine = create_engine(db_uri, 
+                       convert_unicode=True, 
+                       encoding='utf-8')
 
 
 #################
@@ -143,10 +146,10 @@ schema = 'data'
 #################
 
 # Load Statistics
-team_stats_records_df = pd.read_sql_table('team_stats_records', engine, schema=schema)
+team_stats_records_df = pd.read_sql_table('team_stats_records', engine)
 
 # Load matches
-matches_df = pd.read_sql_table('matches', engine, schema=schema)
+matches_df = pd.read_sql_table('matches', engine)
 
 
 #########################
@@ -314,7 +317,6 @@ nfl_df2021 = nfl_df2021[new_order]
 
 # Intialize Dash App
 app = dash.Dash(__name__)
-server = app.server
 
 app.layout = html.Div([
 
