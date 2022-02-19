@@ -12,7 +12,7 @@ INFORMATION
 
 Author: Jean-Sebastien Roussy
 Date Created: 2021-12-02
-Last Modified: 2022-02-18
+Last Modified: 2022-02-19
 
 Description:
 
@@ -29,6 +29,10 @@ Modification History:
             calling the app through shell
 2022-02-18: Added models to S3 bucket and called them via S3 URI 
             stored in .env file
+2022-02-19: Split code base into two files to save memory when running App
+            in Heroku. Final table is loaded in and retreived from
+            Heroku Postgres.
+                       
                
 '''
 
@@ -37,17 +41,9 @@ Modification History:
 ### Imports ###
 ###############
 
-from os.path import join
 import pandas as pd
-import numpy as np
-import math
-from math import pi
-from joblib import dump, load
-from io import BytesIO
-import boto3
-import tempfile
-import gc
 
+import tempfile
 from dotenv import load_dotenv
 from os import getenv
 from sqlalchemy import create_engine
@@ -55,24 +51,13 @@ from sqlalchemy import create_engine
 import dash
 from dash import dash_table as dt
 from dash import Dash, Input, Output, callback, dcc, html
-import dash_bootstrap_components as dbc
+import dash_bootstrap_components as dbc 
 
 
 #################
 ### Functions ###
 #################
 
-#################################
-### Feature Engineering Funcs ###
-#################################
-
-# For time based columns
-def transformation(column):
-    max_value = column.max()
-    sin_values = [math.sin((2*pi*x)/max_value) for x in list(column)]
-    cos_values = [math.cos((2*pi*x)/max_value) for x in list(column)]
-    return sin_values, cos_values
-    
 ######################
 ### Read SQL to DF ###
 ######################
@@ -92,36 +77,6 @@ def read_sql_tmpfile(query, dbengine, table=None):
         tmpfile.seek(0)
         df = pd.read_csv(tmpfile)
         return df
-
-#######################
-### S3 Loading Func ###
-#######################
-
-# Source: https://stackoverflow.com/questions/62941174/how-to-write-load-machine-learning-model-to-from-s3-bucket-through-joblib
-def read_joblib(path):
-    ''' 
-       Function to load a joblib file from an s3 bucket or local directory.
-       Arguments:
-       * path: an s3 bucket or local directory path where the file is stored
-       Outputs:
-       * file: Joblib file loaded
-    '''
-
-    # Path is an s3 bucket
-    if path[:5] == 's3://':
-        s3_bucket, s3_key = path.split('/')[2], path.split('/')[3:]
-        s3_key = '/'.join(s3_key)
-        with BytesIO() as f:
-            boto3.client("s3").download_fileobj(Bucket=s3_bucket, Key=s3_key, Fileobj=f)
-            f.seek(0)
-            file = load(f)
-    
-    # Path is a local directory 
-    else:
-        with open(path, 'rb') as f:
-            file = load(f)
-    
-    return file
     
 #######################
 ### Dash  App Funcs ###
@@ -193,192 +148,18 @@ engine = create_engine(db_uri,
                        encoding='utf-8')
 
 
+
 #################
 ### LOAD DATA ###
 #################
 
-# Load Statistics
-team_stats_records_df = read_sql_tmpfile('team_stats_records', engine, table='matview')
-
-# Load matches
-matches_df = read_sql_tmpfile('matches', engine)
+# Load NFL 2021 Season
+nfl_df2021 = read_sql_tmpfile('nfl_2021_season', engine)
 
 
-#########################
-### JOIN DATA & CLEAN ###
-#########################
-
-# Merge Remerged df to Matches df
-nfl_df = matches_df.merge(team_stats_records_df, left_on=['season', 'home_team'], 
-                          right_on=['season','id'])\
-                   .merge(team_stats_records_df, left_on=['season', 'away_team'], 
-                          right_on=['season','id'],
-                          suffixes=('_home', '_away'))
-
-# Sort NFL df by date_time
-nfl_df = nfl_df.sort_values(['date_time'])
-
-# Drop redundant columns like id_x/id_y, etc
-drop_cols = [col for col in nfl_df.columns if '_x' in col or '_y' in col]
-nfl_df = nfl_df.drop(drop_cols, axis=1)
-
-# Drop stats columns with 999 values in it
-drop_999_cols = [col for col in nfl_df.columns[nfl_df.isin([999]).any()]                   if 'stat' in col]
-nfl_df = nfl_df.drop(drop_999_cols, axis=1)
-
-# Drop stats and record columns with only 0 values
-drop_0_cols = [col for col, is_zero in ((nfl_df == 0).sum() == nfl_df.shape[0])               .items() if is_zero and ('stat' in col or 'record' in col)]
-nfl_df = nfl_df.drop(drop_0_cols, axis=1)
-
-# Replace 999 values in matches info
-replace_999_cols = ['home_team_win', 'home_team_score', 
-                    'away_team_win', 'away_team_score']
-nfl_df[replace_999_cols] = nfl_df[replace_999_cols].replace(999,0)
-
-# Replace remaining NaNs with 0
-nfl_df = nfl_df.fillna(0)
-
-# Dump variables to release memory
-del matches_df
-del team_stats_records_df
-gc.collect()
-
-###########################
-### FEATURE ENGINEERING ###
-###########################
-
-# Date_time to Month, Day of Week, Time of Day as ints
-nfl_df['date_time'] = pd.to_datetime(nfl_df['date_time'])
-nfl_df['month'] = nfl_df['date_time'].dt.month.astype('int64')
-nfl_df['day_week'] = nfl_df['date_time'].dt.dayofweek.astype('int64')
-nfl_df['time_day'] = nfl_df['date_time'].dt.hour.astype('int64')
-
-# Calculate Cosine and Sine for new dates
-for col in ['month', 'day_week', 'time_day']:
-    time_sine, time_cos = transformation(nfl_df[col])
-    nfl_df[col[0:3]+'_sine'] = time_sine
-    nfl_df[col[0:3]+'_cos'] = time_cos
-
-
-###################
-### X & y SPLIT ###
-###################
-
-# X cols list
-keep_cols = ['stat', 'record', 'sine', 'cos',
-             'division', 'conference', 'team_name', 'location']
-
-remove_cols = ['team_win', 'team_score', 'id', 'date_time',
-               'month', 'day_week', 'time_day']
-
-X_cols =  [col for col in list(nfl_df.columns) if any(kc in col for kc in keep_cols) and any(rc not in col for rc in remove_cols)]
-
-## Split X and y into Train and Test
-# X,y Train
-X_train = nfl_df[~nfl_df['season'].isin([2021])][X_cols]
-y_train = nfl_df[~nfl_df['season'].isin([2021])]['home_team_win']
-y_regtrain = nfl_df[~nfl_df['season'].isin([2021])][['home_team_score',
-                                                     'away_team_score']]
-# X
-X_test = nfl_df[nfl_df['season'].isin([2021])][X_cols]
-
-
-##################
-### LOAD MODEL ###
-##################
-
-# Load Logistic Regresssion Model
-xgb_model = read_joblib(getenv('XGB_URI'))
-# Load SVR Model
-svr_model = read_joblib(getenv('SVR_URI'))
-
-
-########################
-### 2021 PREDICTIONS ###
-########################
-
-## 2021 DATA 
-
-# Fit Model Logistic Regression
-xgb_model.fit(X_train, y_train)
-
-# Predict labels
-pred_label = xgb_model.predict(X_test)
-
-# Probabilities
-prob = xgb_model.predict_proba(X_test)
-
-# Fit Model SVR
-svr_model.fit(X_train, y_regtrain)
-
-# Predict Scores
-pred_scores = svr_model.predict(X_test)
-
-# Dump variables to release memory
-del xgb_model
-del svr_model
-del X_train
-del X_test
-del y_train
-del y_regtrain
-gc.collect()
-
-
-###################
-### 2021 TABLES ###
-###################
-
-# Weekly results Table
-nfl_df2021 = nfl_df[nfl_df['season'] == 2021][['team_name_home',
-                                               'home_team_score',
-                                               'away_team_score',
-                                               'team_name_away',
-                                               'week',
-                                               'home_team_win']]
-
-# Change column names
-nfl_df2021 = nfl_df2021.rename(columns={'team_name_home':'home_team',
-                                        'team_name_away':'away_team',
-                                        'home_team_score':'home_score',
-                                        'away_team_score':'away_score'})
-
-# Add probability column to df
-nfl_df2021['home_team_win_probability'] = [int(round(x*100)) for x in prob[:,1]]
-# Add predicted labels
-nfl_df2021['predicted_winner'] = pred_label
-# Add predicted Home Score
-nfl_df2021['predicted_home_score'] = [int(round(x)) for x in pred_scores[:,0]]
-# Add predicted Home Score
-nfl_df2021['predicted_away_score'] = [int(round(x)) for x in pred_scores[:,1]]
-
-# Map actual winner name to column
-nfl_df2021['actual_winner'] = nfl_df2021.apply(lambda x: x.home_team if x.home_team_win == 1 else x.away_team, axis=1)
-# Map predicted winner name to column
-nfl_df2021['predicted_winner'] = nfl_df2021.apply(lambda x: x.home_team if x.predicted_winner == 1 else x.away_team, axis=1)
-# Map win probability
-nfl_df2021['win_probability'] = nfl_df2021.apply(lambda x: x.home_team_win_probability if x.predicted_winner == x.home_team else 100 - x.home_team_win_probability, axis=1)
-# Map correct predicition
-nfl_df2021['correct_prediction'] = (nfl_df2021['predicted_winner'] == nfl_df2021['actual_winner']).astype(int)
-# Replace Actual Winner value with None if game not played yet
-nfl_df2021['actual_winner'] = np.where((nfl_df2021['home_score'] == 0) & (nfl_df2021['away_score'] == 0), "None", nfl_df2021['actual_winner'])
-# Replace Correct Prediction value with -1 if game not played yet
-nfl_df2021['correct_prediction'] = np.where((nfl_df2021['home_score'] == 0) & (nfl_df2021['away_score'] == 0), -1, nfl_df2021['correct_prediction'])
-
-# Drop columns
-nfl_df2021 = nfl_df2021.drop(columns=['home_team_win_probability', 'home_team_win'])
-
-# Move Cols
-move_cols = nfl_df2021.columns.to_list()
-new_order = move_cols[4:5] + move_cols[0:2] + move_cols[6:8] + move_cols[2:4] + move_cols[5:6] + move_cols[8:]
-nfl_df2021 = nfl_df2021[new_order]
-
-# Dump variables to release memory
-del nfl_df
-gc.collect()
-
-#################
-### DASH APP  ###
-#################
+################
+### DASH APP ###
+################
 
 # Intialize Dash App
 app = dash.Dash(__name__)
