@@ -45,6 +45,8 @@ from math import pi
 from joblib import dump, load
 from io import BytesIO
 import boto3
+import tempfile
+import gc
 
 from dotenv import load_dotenv
 from os import getenv
@@ -54,9 +56,6 @@ import dash
 from dash import dash_table as dt
 from dash import Dash, Input, Output, callback, dcc, html
 import dash_bootstrap_components as dbc
-
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 
 #################
@@ -73,6 +72,26 @@ def transformation(column):
     sin_values = [math.sin((2*pi*x)/max_value) for x in list(column)]
     cos_values = [math.cos((2*pi*x)/max_value) for x in list(column)]
     return sin_values, cos_values
+    
+######################
+### Read SQL to DF ###
+######################
+
+# Source: https://towardsdatascience.com/optimizing-pandas-read-sql-for-postgres-f31cd7f707ab
+def read_sql_tmpfile(query, dbengine, table=None):
+    with tempfile.TemporaryFile() as tmpfile:
+        if table == 'matview':
+            copy_sql = 'COPY (SELECT * FROM "{query}") TO STDOUT WITH CSV {head}'.format(
+                        query=query, head="HEADER")
+        else:
+            copy_sql = 'COPY "{query}" TO STDOUT WITH CSV {head}'.format(
+                        query=query, head="HEADER")
+        conn = dbengine.raw_connection()
+        cur = conn.cursor()
+        cur.copy_expert(copy_sql, tmpfile)
+        tmpfile.seek(0)
+        df = pd.read_csv(tmpfile)
+        return df
 
 #######################
 ### S3 Loading Func ###
@@ -179,10 +198,10 @@ engine = create_engine(db_uri,
 #################
 
 # Load Statistics
-team_stats_records_df = pd.read_sql_table('team_stats_records', engine)
+team_stats_records_df = read_sql_tmpfile('team_stats_records', engine)
 
 # Load matches
-matches_df = pd.read_sql_table('matches', engine)
+matches_df = read_sql_tmpfile('matches', engine)
 
 
 #########################
@@ -252,7 +271,7 @@ keep_cols = ['stat', 'record', 'sine', 'cos',
 remove_cols = ['team_win', 'team_score', 'id', 'date_time',
                'month', 'day_week', 'time_day']
 
-X_cols =  [col for col in list(nfl_df.columns)                    if any(kc in col for kc in keep_cols)           and any(rc not in col for rc in remove_cols)]
+X_cols =  [col for col in list(nfl_df.columns) if any(kc in col for kc in keep_cols) and any(rc not in col for rc in remove_cols)]
 
 ## Split X and y into Train and Test
 # X,y Train
@@ -298,6 +317,10 @@ pred_scores = svr_model.predict(X_test)
 # Dump variables to release memory
 del xgb_model
 del svr_model
+del X_train
+del X_test
+del y_train
+del y_regtrain
 
 
 ###################
@@ -350,6 +373,7 @@ nfl_df2021 = nfl_df2021[new_order]
 
 # Dump variables to release memory
 del nfl_df
+gc.collect()
 
 #################
 ### DASH APP  ###
