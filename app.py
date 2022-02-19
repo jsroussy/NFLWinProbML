@@ -198,7 +198,7 @@ engine = create_engine(db_uri,
 #################
 
 # Load Statistics
-team_stats_records_df = read_sql_tmpfile('team_stats_records', engine)
+team_stats_records_df = read_sql_tmpfile('team_stats_records', engine, table='matview')
 
 # Load matches
 matches_df = read_sql_tmpfile('matches', engine)
