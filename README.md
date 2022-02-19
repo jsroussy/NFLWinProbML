@@ -1,7 +1,7 @@
 # NFL Game Win Probability Predictor using ML
 > This project was in conjunction with my Concordia Data Science Bootcamp 2021. The goal was to predict the probability of one team winning versus another.
 > I built a web scraper to access ESPN nfl API. Tested a few models for performance and saved the best ones.
-> To visualize the results I built a Dash App.
+> To visualize the results I built a Dash App and deployed it on Heroku. Check it out here: https://nfl-win-probability-predictor.herokuapp.com/
 
 ## Table of Contents
 * [General Info](#general-information)
@@ -40,7 +40,8 @@ The data is required to run the App, so:
    - Make sure to name 'folder' data
    - You may skip this step as data is already included in data folder
 - App.py has been modified to get data from Heroku Postgres and Models from S3 Bucket.
-   - The script can be modified to load the data and models from a local directory as the necessary files have been provided.
+   - The script has been partitioned into two scripts the second being nfl_modelToPostgre notebook.
+   - Given the modifications the app is no longer usable as is. 
 - So: `python path\\to\\script.py`
 
 
@@ -56,6 +57,8 @@ Room for improvement:
 
 To do:
 - More Web Scrapers for additional data
+- Add a local deployment folder with .py files.
+- Modify UI to highlight predicted score and win probability.
 - To be determined.
 
 ## Recent Modifications
