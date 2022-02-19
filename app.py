@@ -238,17 +238,17 @@ nfl_df[replace_999_cols] = nfl_df[replace_999_cols].replace(999,0)
 # Replace remaining NaNs with 0
 nfl_df = nfl_df.fillna(0)
 
-nfl_df.info()
-
 # Dump variables to release memory
 del matches_df
 del team_stats_records_df
+gc.collect()
 
 ###########################
 ### FEATURE ENGINEERING ###
 ###########################
 
 # Date_time to Month, Day of Week, Time of Day as ints
+nfl_df['date_time'] = pd.to_datetime(nfl_df['date_time'])
 nfl_df['month'] = nfl_df['date_time'].dt.month.astype('int64')
 nfl_df['day_week'] = nfl_df['date_time'].dt.dayofweek.astype('int64')
 nfl_df['time_day'] = nfl_df['date_time'].dt.hour.astype('int64')
@@ -321,6 +321,7 @@ del X_train
 del X_test
 del y_train
 del y_regtrain
+gc.collect()
 
 
 ###################
